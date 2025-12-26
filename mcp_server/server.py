@@ -109,13 +109,7 @@ async def main():
     """Main server entry point."""
     logger.info("Starting ACAT Datastore MCP Server")
     logger.info(f"ACAT Reference File: {ACAT_REFERENCE_FILE}")
-    
-    logger.info("Preloading ACAT reference data...")
-    result = get_acat_ref_func(Path(ACAT_REFERENCE_FILE))
-    if "error_type" in result:
-        logger.error(f"Failed to preload ACAT reference: {result['error_message']}")
-    else:
-        logger.info(f"Successfully preloaded {result['total_count']} ACAT reference datastores")
+    logger.info("Server is reactive - data loaded only when tools are called")
     
     async with stdio_server() as (read_stream, write_stream):
         logger.info("MCP Server running on stdio transport")
