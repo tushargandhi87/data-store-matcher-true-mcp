@@ -13,7 +13,7 @@ CLAUDE_TEMPERATURE = 0.1
 
 # File Paths
 BASE_DIR = Path(__file__).parent.parent
-ACAT_REFERENCE_FILE = os.getenv("ACAT_REFERENCE_FILE", str(BASE_DIR / "mcp_server" / "data" / "ACAT_Data_Stores_Master.xlsx"))
+# Note: ACAT reference is accessed via MCP server tool, not direct file access
 USER_INPUT_FILE = os.getenv("USER_INPUT_FILE", str(BASE_DIR / "input" / "user_input.xlsx"))
 OUTPUT_DIR = BASE_DIR / "output"
 
