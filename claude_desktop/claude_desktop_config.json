@@ -1,0 +1,13 @@
+{
+    "mcpServers": {
+        "acat-datastore-service": {
+            "command": "python",
+            "args": [
+                "C:/Users/a818537/OneDrive - ATOS/Documents/ACAT Features PoC/Tech Name Normalization v4 MCP/data-store-matcher-true-mcp/mcp_server/server.py"
+            ],
+            "env": {
+                "ACAT_REFERENCE_FILE": "C:/Users/a818537/OneDrive - ATOS/Documents/ACAT Features PoC/Tech Name Normalization v4 MCP/data-store-matcher-true-mcp/mcp_server/data/ACAT_Data_Stores_Master.xlsx"
+            }
+        }
+    }
+}

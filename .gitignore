@@ -1,0 +1,54 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# Environment variables (IMPORTANT: Contains API keys)
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+mcp_server.log
+agent.log
+
+# Output files (generated data)
+output/*.xlsx
+!output/.gitkeep
+
+# Data files (sensitive/large)
+mcp_server/data/*.xlsx
+!mcp_server/data/.gitkeep
+
+# Input files (user-specific)
+input/*.xlsx
+!input/.gitkeep
+!input/test_user_input.xlsx
+
+# MCP Server state
+*.db
+*.sqlite
+
+# Test cache
+.pytest_cache/
+.coverage
+htmlcov/
