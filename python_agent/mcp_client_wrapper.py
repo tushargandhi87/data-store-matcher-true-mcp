@@ -4,7 +4,7 @@ import json
 import logging
 import sys
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
@@ -48,6 +48,32 @@ class MCPClientWrapper:
         except Exception as e:
             logger.error(f"Failed to connect to MCP server: {e}", exc_info=True)
             raise
+    
+    async def list_tools(self) -> List[Dict[str, Any]]:
+        """List available MCP tools with their schemas."""
+        if not self.session:
+            raise RuntimeError("Not connected to MCP server. Call connect() first.")
+        
+        try:
+            logger.info("Fetching MCP tool schemas")
+            
+            result = await self.session.list_tools()
+            
+            # Convert to dict format
+            tools = []
+            for tool in result.tools:
+                tools.append({
+                    "name": tool.name,
+                    "description": tool.description,
+                    "inputSchema": tool.inputSchema if hasattr(tool, 'inputSchema') else {}
+                })
+            
+            logger.info(f"Fetched {len(tools)} tool schemas")
+            return tools
+            
+        except Exception as e:
+            logger.error(f"Error fetching tool schemas: {e}", exc_info=True)
+            return []
     
     async def call_tool(self, tool_name: str, arguments: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Call an MCP tool."""

@@ -1,20 +1,19 @@
-"""Main Python Agent for ACAT Datastore Matching."""
+"""Main Python Agent for ACAT Datastore Matching - Pattern 2 (Agentic)."""
 import asyncio
 import logging
-import re
 import sys
 from pathlib import Path
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).parent))
 
 from config import (
     CLAUDE_API_KEY, CLAUDE_MODEL, CLAUDE_MAX_TOKENS, CLAUDE_TEMPERATURE,
-    USER_INPUT_FILE, OUTPUT_DIR, CONFIDENCE_THRESHOLD, RATE_LIMIT_DELAY, LOG_LEVEL
+    USER_INPUT_FILE, OUTPUT_DIR, RATE_LIMIT_DELAY, LOG_LEVEL
 )
 from mcp_client_wrapper import MCPClientWrapper
-from llm_matcher import LLMatcher
+from agentic_orchestrator import AgenticOrchestrator
 from excel_writer import ExcelWriter
 
 logging.basicConfig(
@@ -40,182 +39,149 @@ def load_user_input(filepath: Path) -> List[str]:
         raise
 
 
-def extract_product_version(datastore_name: str) -> Tuple[str, str]:
-    """Extract product name and version from datastore string."""
-    cleaned = re.sub(r'\s+(Enterprise|Standard|Express|Developer|SP\d+|R\d+).*$', '', datastore_name, flags=re.IGNORECASE)
-    match = re.match(r'^(.+?)\s+([\d.]+.*?)$', cleaned)
-    
-    if match:
-        return match.group(1).strip(), match.group(2).strip()
-    
-    return datastore_name, ""
-
-
-def print_summary(match_results: List[Dict[str, Any]], eol_results: List[Dict[str, Any]]):
+def print_summary(results: List[Dict[str, Any]]):
     """Print summary statistics."""
     print("\n" + "="*60)
     print("PROCESSING SUMMARY")
     print("="*60)
     
-    total_matches = len(match_results)
-    high_confidence = len([r for r in match_results if r.get("confidence", 0) >= 0.8])
-    medium_confidence = len([r for r in match_results if 0.6 <= r.get("confidence", 0) < 0.8])
-    low_confidence = len([r for r in match_results if r.get("confidence", 0) < 0.6])
+    total_matches = len(results)
+    high_confidence = len([r for r in results if r.get("confidence", 0) >= 0.8])
+    medium_confidence = len([r for r in results if 0.6 <= r.get("confidence", 0) < 0.8])
+    low_confidence = len([r for r in results if r.get("confidence", 0) < 0.6])
+    
+    with_eol = len([r for r in results if r.get("eol_data") is not None])
     
     print(f"\nMATCHING RESULTS:")
     print(f"  Total datastores processed: {total_matches}")
     print(f"  High confidence (>=0.8): {high_confidence}")
     print(f"  Medium confidence (0.6-0.8): {medium_confidence}")
     print(f"  Low confidence (<0.6): {low_confidence}")
-    
-    total_eol_lookups = len(eol_results)
-    success = len([r for r in eol_results if r.get("status") == "success"])
-    not_found = len([r for r in eol_results if r.get("status") == "not_found"])
-    errors = len([r for r in eol_results if r.get("status") == "error"])
-    
-    print(f"\nEOL LOOKUP RESULTS:")
-    print(f"  Total lookups: {total_eol_lookups}")
-    print(f"  Successful: {success}")
-    print(f"  Not found: {not_found}")
-    print(f"  Errors: {errors}")
+    print(f"\nEOL ENRICHMENT:")
+    print(f"  Datastores with EOL data: {with_eol}")
     
     print("\n" + "="*60)
 
 
 async def main():
-    """Main agent execution."""
+    """Main agent execution - Pattern 2 (Agentic)."""
     try:
         print("\n" + "="*60)
-        print("ACAT DATASTORE MATCHER - MCP AGENT")
+        print("ACAT DATASTORE MATCHER - AGENTIC MODE (Pattern 2)")
         print("="*60 + "\n")
         
         logger.info("Initializing components...")
         
+        # Initialize MCP client
         mcp_server_path = Path(__file__).parent.parent / "mcp_server" / "server.py"
         mcp_client = MCPClientWrapper(str(mcp_server_path))
         
-        llm_matcher = LLMatcher(
+        # Initialize agentic orchestrator
+        orchestrator = AgenticOrchestrator(
             api_key=CLAUDE_API_KEY,
             model=CLAUDE_MODEL,
             max_tokens=CLAUDE_MAX_TOKENS,
             temperature=CLAUDE_TEMPERATURE
         )
         
+        # Initialize Excel writer
         excel_writer = ExcelWriter(OUTPUT_DIR)
         
         logger.info("Connecting to MCP server...")
         await mcp_client.connect()
         
+        # Load user input
         user_datastores = load_user_input(USER_INPUT_FILE)
         print(f"Loaded {len(user_datastores)} user datastores\n")
         
-        logger.info("Fetching ACAT reference data...")
-        acat_response = await mcp_client.call_tool("get_acat_reference", {})
-        
-        if "error_type" in acat_response:
-            logger.error(f"Failed to get ACAT reference: {acat_response['error_message']}")
-            print(f"ERROR: {acat_response['error_message']}")
-            return
-        
-        reference_list = acat_response.get("reference_list", [])
-        total_count = acat_response.get("total_count", 0)
-        
-        print(f"Retrieved {total_count} ACAT reference datastores\n")
-        logger.info(f"ACAT reference loaded: {total_count} entries")
+        # Fetch MCP tool schemas
+        logger.info("Fetching MCP tool schemas...")
+        mcp_tools = await mcp_client.list_tools()
+        print(f"Available MCP tools: {[t['name'] for t in mcp_tools]}\n")
         
         print("="*60)
-        print("PHASE 1: LLM MATCHING")
+        print("AGENTIC PROCESSING - Claude Controls Workflow")
         print("="*60 + "\n")
         
-        match_results = []
+        print("Starting agentic loop...")
+        print("Claude will:")
+        print("  1. Fetch ACAT reference data (via MCP tool)")
+        print("  2. Match each datastore against reference")
+        print("  3. Look up EOL data for low-confidence matches")
+        print("  4. Return structured results\n")
         
-        for i, datastore in enumerate(user_datastores, 1):
-            print(f"[{i}/{len(user_datastores)}] Matching: {datastore}")
-            
-            result = await llm_matcher.match(datastore, reference_list)
-            match_results.append(result)
-            
-            print(f"  -> {result['matched_datastore']} (confidence: {result['confidence']:.2f})")
-            print(f"  -> Reasoning: {result['reasoning']}\n")
-            
-            await asyncio.sleep(RATE_LIMIT_DELAY)
+        # Run agentic loop - Claude decides which tools to call!
+        result = await orchestrator.run_agentic_loop(
+            user_datastores=user_datastores,
+            mcp_tools=mcp_tools,
+            mcp_client=mcp_client,
+            max_iterations=20
+        )
         
-        print("\nWriting match results...")
-        match_file = excel_writer.write_match_results(match_results)
-        print(f"[OK] Saved to: {match_file}\n")
+        logger.info(f"Agentic loop completed with status: {result.get('status')}")
         
-        print("="*60)
-        print("PHASE 2: EOL INFORMATION LOOKUP")
-        print("="*60 + "\n")
-        
-        low_confidence_matches = [r for r in match_results if r.get("confidence", 1.0) < CONFIDENCE_THRESHOLD]
-        
-        print(f"Found {len(low_confidence_matches)} low-confidence matches requiring EOL lookup\n")
-        
-        eol_results = []
-        
-        for i, match in enumerate(low_confidence_matches, 1):
-            input_ds = match["input_datastore"]
-            matched_ds = match["matched_datastore"]
+        if result["status"] == "success":
+            results = result["results"]
+            print(f"\n[OK] Agentic processing complete! Processed {len(results)} datastores\n")
             
-            print(f"[{i}/{len(low_confidence_matches)}] Looking up: {input_ds}")
+            # Convert to expected format for Excel writer
+            match_results = []
+            eol_success = []
+            eol_not_found = []
+            eol_errors = []
             
-            if matched_ds and matched_ds != "NOT FOUND" and matched_ds != "ERROR":
-                product, version = extract_product_version(matched_ds)
-            else:
-                product, version = extract_product_version(input_ds)
+            for item in results:
+                # Match result
+                match_results.append({
+                    "input_datastore": item.get("input_datastore", ""),
+                    "matched_datastore": item.get("matched_datastore", ""),
+                    "confidence": item.get("confidence", 0.0),
+                    "reasoning": item.get("reasoning", "")
+                })
+                
+                # EOL data categorization
+                eol_data = item.get("eol_data")
+                if eol_data:
+                    if eol_data.get("status") == "success":
+                        eol_success.append({
+                            "input_datastore": item.get("input_datastore"),
+                            **eol_data
+                        })
+                    elif eol_data.get("status") == "not_found":
+                        eol_not_found.append({
+                            "input_datastore": item.get("input_datastore"),
+                            **eol_data
+                        })
+                    elif eol_data.get("status") == "error":
+                        eol_errors.append({
+                            "input_datastore": item.get("input_datastore"),
+                            **eol_data
+                        })
             
-            if not version:
-                print(f"  -> Skipping: No version found\n")
-                continue
+            # Write output files
+            print("Writing results to Excel...")
+            match_file = excel_writer.write_match_results(match_results)
+            print(f"[OK] Match results: {match_file}")
             
-            print(f"  -> Product: {product}, Version: {version}")
+            if eol_success:
+                success_file = excel_writer.write_eol_success(eol_success)
+                print(f"[OK] EOL success: {success_file}")
             
-            eol_result = await mcp_client.call_tool("endoflife_lookup", {
-                "product": product,
-                "version": version
-            })
+            if eol_not_found:
+                not_found_file = excel_writer.write_eol_not_found(eol_not_found)
+                print(f"[OK] EOL not found: {not_found_file}")
             
-            eol_result["input_datastore"] = input_ds
-            eol_results.append(eol_result)
+            if eol_errors:
+                error_file = excel_writer.write_eol_errors(eol_errors)
+                print(f"[OK] EOL errors: {error_file}")
             
-            status = eol_result.get("status", "unknown")
-            if status == "success":
-                print(f"  [OK] Found: {eol_result.get('matched_version')} (EOL: {eol_result.get('eol_date')})")
-            elif status == "not_found":
-                print(f"  [X] Not found: {eol_result.get('error_message')}")
-            else:
-                print(f"  [X] Error: {eol_result.get('error_message')}")
+            # Print summary
+            print_summary(results)
             
-            print()
-            
-            await asyncio.sleep(RATE_LIMIT_DELAY)
-        
-        success_results = [r for r in eol_results if r.get("status") == "success"]
-        not_found_results = [r for r in eol_results if r.get("status") == "not_found"]
-        error_results = [r for r in eol_results if r.get("status") == "error"]
-        
-        print("Writing EOL lookup results...")
-        
-        if success_results:
-            success_file = excel_writer.write_eol_success(success_results)
-            print(f"[OK] Success results: {success_file}")
         else:
-            print("  (No success results)")
-        
-        if not_found_results:
-            not_found_file = excel_writer.write_eol_not_found(not_found_results)
-            print(f"[OK] Not found results: {not_found_file}")
-        else:
-            print("  (No not found results)")
-        
-        if error_results:
-            error_file = excel_writer.write_eol_errors(error_results)
-            print(f"[OK] Error results: {error_file}")
-        else:
-            print("  (No error results)")
-        
-        print_summary(match_results, eol_results)
+            print(f"\n[X] Agentic processing failed: {result.get('error')}")
+            if "raw_response" in result:
+                print(f"Raw response: {result['raw_response'][:500]}...")
         
         logger.info("Cleaning up...")
         await mcp_client.close()
