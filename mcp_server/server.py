@@ -40,7 +40,7 @@ async def handle_list_tools() -> list[types.Tool]:
             inputSchema={"type": "object", "properties": {}, "required": []}
         ),
         types.Tool(
-            name="endoflife_lookup",
+            name="end_of_life_lookup",
             description=(
                 "Queries endoflife.date API to get version information, EOL dates, and support status for datastores.\n\n"
                 "USE THIS TOOL WHEN:\n"
@@ -73,7 +73,7 @@ async def handle_call_tool(name: str, arguments: dict[str, Any] | None) -> list[
             result = get_acat_ref_func(Path(ACAT_REFERENCE_FILE))
             return [types.TextContent(type="text", text=str(result))]
             
-        elif name == "endoflife_lookup":
+        elif name == "end_of_life_lookup":
             if not arguments:
                 return [types.TextContent(type="text", text=str({
                     "status": "error",

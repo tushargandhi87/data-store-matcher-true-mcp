@@ -49,7 +49,7 @@ WORKFLOW STRATEGY:
 1. First, call get_acat_reference to retrieve the ACAT reference list (call this ONCE)
 2. For each user datastore, compare it against the ACAT reference list
 3. Return a match with confidence score (0.0-1.0) and reasoning
-4. For matches with confidence < 0.7, call endoflife_lookup to get version/EOL data
+4. For matches with confidence < 0.7, call end_of_life_lookup to get version/EOL data
 
 MATCHING RULES:
 - Handle typos: "PostGres" → "PostgreSQL"
